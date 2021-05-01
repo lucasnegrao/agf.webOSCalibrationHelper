@@ -1,0 +1,173 @@
+# This Python file uses the following encoding: utf-8
+import sys
+import os
+import asyncio
+
+from aiopylgtv import WebOsClient
+from PySide2.QtWidgets import QApplication, QWidget, QFileDialog, QMessageBox
+from PySide2.QtCore import QFile
+from PySide2.QtUiTools import QUiLoader
+from PySide2.QtCore import QObject, Signal, Slot
+
+class webOSCalHelperWidget(QWidget):
+    objs = []
+    def __init__(self):
+        super(webOSCalHelperWidget, self).__init__()
+        self.load_ui()
+
+    def load_ui(self):
+        loader = QUiLoader()
+        path = os.path.join(os.path.dirname(__file__), "form.ui")
+        ui_file = QFile(path)
+        ui_file.open(QFile.ReadOnly)
+        
+        # Widget Initialization
+        self.objs = loader.load(ui_file, self)
+        self.objs.calibrationModeComboBox.addItems(["expert1","expert2","cinema","game","technicolorExpert"])
+        
+        # PushButton Callbacks
+        self.objs.pB.clicked.connect(LUT1DBrowseClicked)
+        self.objs.pB2.clicked.connect(LUT3D709BrowseClicked)
+        self.objs.connectPB.clicked.connect(lambda: connectClicked(self.objs.connectPB))
+        self.objs.ddcResetPB.clicked.connect(lambda: ddcResetClicked(self.objs.calibrationModeComboBox))
+        self.objs.upload1D.clicked.connect(lambda: asyncio.get_event_loop().run_until_complete(uploadLut("1D",self.objs.LutEdit1)))
+        self.objs.upload3D709.clicked.connect(lambda: asyncio.get_event_loop().run_until_complete(uploadLut("3D709",self.objs.LutEdit2)))
+        self.objs.upload3D2020.clicked.connect(lambda: asyncio.get_event_loop().run_until_complete(uploadLut("3D2020",self.objs.LutEdit3)))
+
+        # Slider Callbacks
+        self.objs.contrastSlider.valueChanged.connect(lambda: setImageSetting("contrast",self.objs.contrastSlider))
+        self.objs.brightnessSlider.valueChanged.connect(lambda: setImageSetting("brightness",self.objs.brightnessSlider))
+        self.objs.oledLightSlider.valueChanged.connect(lambda: setImageSetting("backlight",self.objs.oledLightSlider))
+
+        #ComboBox Callbacks
+        self.objs.calibrationModeComboBox.currentIndexChanged.connect(lambda: setModeComboChanged(self.objs.calibrationModeComboBox))
+
+        ui_file.close()
+
+def setImageSetting(operationStr, obj):
+    asyncio.get_event_loop().run_until_complete(setImageSettingAsync(operationStr,obj))
+
+# webOS async functions
+async def uploadLut(typeStr, editObj):
+    if typeStr == "1D":
+        await webosClientGlobalObj.upload_1d_lut_from_file(picMode=mainWidgetObj.objs.calibrationModeComboBox.currentText(), filename=editObj.text())
+    elif typeStr == "3D709":
+        await webosClientGlobalObj.upload_3d_lut_bt709_from_file(picMode=mainWidgetObj.objs.calibrationModeComboBox.currentText(), filename=editObj.text())
+    elif typeStr == "3D2020":
+        await webosClientGlobalObj.upload_3d_lut_bt2020_from_file(picMode=mainWidgetObj.objs.calibrationModeComboBox.currentText(), filename=editObj.text())
+
+async def setImageSettingAsync(operationStr, obj):
+    if webosClientGlobalObj:
+        if operationStr == "contrast":
+            await webosClientGlobalObj.set_contrast(picMode=mainWidgetObj.objs.calibrationModeComboBox.currentText(), value=obj.value())
+        elif operationStr == "backlight":
+            await webosClientGlobalObj.set_oled_light(picMode=mainWidgetObj.objs.calibrationModeComboBox.currentText(), value=obj.value())
+        elif operationStr == "brightness":
+            await webosClientGlobalObj.set_brightness(picMode=mainWidgetObj.objs.calibrationModeComboBox.currentText(), value=obj.value())
+
+async def loadImageSettingsAsync():
+    try:
+        settings = await webosClientGlobalObj.get_picture_settings()
+    except Exception as error:
+        alertBox("Loading Image Settings", "Couldn't load picture settings\n" ,error)
+    else:
+        mainWidgetObj.objs.contrastSlider.setValue(int(settings['contrast']))
+        mainWidgetObj.objs.brightnessSlider.setValue(int(settings['brightness']))
+        mainWidgetObj.objs.oledLightSlider.setValue(int(settings['backlight']))
+
+async def on_state_change():
+    print("State changed:")
+    # print(webosClientGlobalObj.current_appId)
+    # print(webosClientGlobalObj.muted)
+    # print(webosClientGlobalObj.volume)
+    # print(webosClientGlobalObj.current_channel)
+    # print(webosClientGlobalObj.apps)
+    # print(webosClientGlobalObj.inputs)
+    print(webosClientGlobalObj.system_info)
+    print(webosClientGlobalObj.software_info)
+
+async def performWebOSConnection(text):
+    if text=="Connect":
+        global webosClientGlobalObj
+        try:
+            webosClientGlobalObj = await WebOsClient.create(mainWidgetObj.objs.IP.text())
+            await webosClientGlobalObj.register_state_update_callback(on_state_change)
+            await webosClientGlobalObj.connect()
+        except Exception as error:
+            alertBox("Connecting to TV", "Couldn't connect to TV with IP\n" + mainWidgetObj.objs.IP.text(),error)
+            raise 
+        else:
+            activateGUI(True)
+    else:
+        await webosClientGlobalObj.disconnect()
+        activateGUI(False)
+
+async def setMode(modeStr):
+    await webosClientGlobalObj.start_calibration(picMode=modeStr)
+    await loadImageSettingsAsync()
+
+async def performDDCReset(modeStr):
+    if modeStr!="":
+        try:
+            await webosClientGlobalObj.ddc_reset(picMode=modeStr)
+        except Exception as error:
+            alertBox("Reseting DDC", "Couldn't reset DDC\n" + modeStr,error)
+            raise
+
+# GUI signal handlers
+def LUT3D709BrowseClicked():
+    fileName = QFileDialog.getOpenFileName(None, "Open 3D LUT", "~/", "3D LUT (*.cube)")
+    mainWidgetObj.objs.LutEdit2.setText(fileName[0])
+    return fileName[0]
+
+def connectClicked(self):
+    operationStr = self.text()
+    try:
+        asyncio.get_event_loop().run_until_complete(performWebOSConnection(operationStr))
+    except:
+        print("Error while connecting, probably wrong IP or TV turned off")
+    else:
+        if operationStr=="Connect": loadImageSettings()
+
+def LUT1DBrowseClicked(self):
+    fileName = QFileDialog.getOpenFileName(None, "Open 1D LUT", "~/", "1D LUT (*.cal)")
+    mainWidgetObj.objs.LutEdit1.setText(fileName[0])
+    return fileName[0]
+
+def setModeComboChanged(self):
+    asyncio.get_event_loop().run_until_complete(setMode(self.currentText()))
+
+def ddcResetClicked(self):
+    modeStr = self.currentText()
+    try:
+        asyncio.get_event_loop().run_until_complete(performDDCReset(modeStr))
+    except:
+        print("Error DCC Reset")
+    else:
+        loadImageSettings()
+
+# GUI General Helpers
+def loadImageSettings():
+    asyncio.get_event_loop().run_until_complete(loadImageSettingsAsync())
+
+def activateGUI(condition):
+    if condition:
+        mainWidgetObj.objs.connectPB.setText("Disconnect")
+    else:
+        mainWidgetObj.objs.connectPB.setText("Connect")
+
+    mainWidgetObj.objs.IP.setEnabled(not condition)
+    mainWidgetObj.objs.connectedCheckbox.setChecked(condition)
+    mainWidgetObj.objs.settingsBox.setEnabled(condition)
+
+def alertBox(text,descriptionStr,err):
+    template = "{0} {1!r}:\n"
+    message = template.format(type(err).__name__, err.args)
+    QMessageBox.warning(mainWidgetObj, "Sorry, we couldn't complete your request", message+descriptionStr) 
+
+if __name__ == "__main__":
+    app = QApplication([])
+    mainWidgetObj = webOSCalHelperWidget()
+    mainWidgetObj.show()
+    sys.exit(app.exec_())
+
