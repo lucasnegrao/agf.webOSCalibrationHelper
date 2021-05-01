@@ -30,9 +30,9 @@ class webOSCalHelperWidget(QWidget):
         self.objs.pB2.clicked.connect(LUT3D709BrowseClicked)
         self.objs.connectPB.clicked.connect(lambda: connectClicked(self.objs.connectPB))
         self.objs.ddcResetPB.clicked.connect(lambda: ddcResetClicked(self.objs.calibrationModeComboBox))
-        self.objs.upload1D.clicked.connect(lambda: asyncio.get_event_loop().run_until_complete(uploadLut("1D",self.objs.LutEdit1)))
-        self.objs.upload3D709.clicked.connect(lambda: asyncio.get_event_loop().run_until_complete(uploadLut("3D709",self.objs.LutEdit2)))
-        self.objs.upload3D2020.clicked.connect(lambda: asyncio.get_event_loop().run_until_complete(uploadLut("3D2020",self.objs.LutEdit3)))
+        self.objs.upload1D.clicked.connect(lambda: uploadLUTClicked("1D",self.objs.LutEdit1))
+        self.objs.upload3D709.clicked.connect(lambda: uploadLUTClicked("3D709",self.objs.LutEdit2))
+        self.objs.upload3D2020.clicked.connect(lambda: uploadLUTClicked("3D2020",self.objs.LutEdit3))
 
         # Slider Callbacks
         self.objs.contrastSlider.valueChanged.connect(lambda: setImageSetting("contrast",self.objs.contrastSlider))
@@ -48,22 +48,42 @@ def setImageSetting(operationStr, obj):
     asyncio.get_event_loop().run_until_complete(setImageSettingAsync(operationStr,obj))
 
 # webOS async functions
-async def uploadLut(typeStr, editObj):
-    if typeStr == "1D":
-        await webosClientGlobalObj.upload_1d_lut_from_file(picMode=mainWidgetObj.objs.calibrationModeComboBox.currentText(), filename=editObj.text())
-    elif typeStr == "3D709":
-        await webosClientGlobalObj.upload_3d_lut_bt709_from_file(picMode=mainWidgetObj.objs.calibrationModeComboBox.currentText(), filename=editObj.text())
-    elif typeStr == "3D2020":
-        await webosClientGlobalObj.upload_3d_lut_bt2020_from_file(picMode=mainWidgetObj.objs.calibrationModeComboBox.currentText(), filename=editObj.text())
+# async def send_message(self, message, icon_path=None)
+async def webOSshowMessage(infoStr):
+    await webosClientGlobalObj.send_message(message=infoStr)
+
+async def uploadLut(typeStr, fileStr,modeStr):
+
+    try:
+        await webosClientGlobalObj.start_calibration(picMode=modeStr)
+    except Exception as error:
+        alertBox("Uploading LUT", "Client Disconnected", error)
+    else:
+        try:
+            if typeStr == "1D":
+                await webosClientGlobalObj.upload_1d_lut_from_file(picMode=modeStr, filename=fileStr)
+            elif typeStr == "3D709":
+                await webosClientGlobalObj.upload_3d_lut_bt709_from_file(picMode=modeStr, filename=fileStr)
+            elif typeStr == "3D2020":
+                await webosClientGlobalObj.upload_3d_lut_bt2020_from_file(picMode=modeStr, filename=fileStr)
+        except Exception as error:
+                alertBox("Uploading LUT", "Wrong LUT", error)
+        else:
+            successBox("Uploaded LUT succesfully")
+            await webOSshowMessage(typeStr + " LUT uploaded and active on "+modeStr)
+            await webosClientGlobalObj.end_calibration(picMode=modeStr)
 
 async def setImageSettingAsync(operationStr, obj):
-    if webosClientGlobalObj:
+    try:
         if operationStr == "contrast":
             await webosClientGlobalObj.set_contrast(picMode=mainWidgetObj.objs.calibrationModeComboBox.currentText(), value=obj.value())
         elif operationStr == "backlight":
             await webosClientGlobalObj.set_oled_light(picMode=mainWidgetObj.objs.calibrationModeComboBox.currentText(), value=obj.value())
         elif operationStr == "brightness":
             await webosClientGlobalObj.set_brightness(picMode=mainWidgetObj.objs.calibrationModeComboBox.currentText(), value=obj.value())
+    except:
+        print("Error setting image settings")
+        
 
 async def loadImageSettingsAsync():
     try:
@@ -86,6 +106,8 @@ async def on_state_change():
     print(webosClientGlobalObj.system_info)
     print(webosClientGlobalObj.software_info)
 
+    if webosClientGlobalObj.system_info==None: activateGUI(False)
+
 async def performWebOSConnection(text):
     if text=="Connect":
         global webosClientGlobalObj
@@ -98,13 +120,16 @@ async def performWebOSConnection(text):
             raise 
         else:
             activateGUI(True)
+            await webOSshowMessage("agf.webOSCalibrationHelper connected!")
     else:
         await webosClientGlobalObj.disconnect()
         activateGUI(False)
 
-async def setMode(modeStr):
+async def performSetMode(modeStr):
     await webosClientGlobalObj.start_calibration(picMode=modeStr)
     await loadImageSettingsAsync()
+    await webOSshowMessage("TV DDC Changed to "+modeStr)
+    await webosClientGlobalObj.end_calibration(picMode=modeStr)
 
 async def performDDCReset(modeStr):
     if modeStr!="":
@@ -113,11 +138,19 @@ async def performDDCReset(modeStr):
         except Exception as error:
             alertBox("Reseting DDC", "Couldn't reset DDC\n" + modeStr,error)
             raise
+        else:
+            successBox("DDC "+modeStr+" reseted succesfully")
+            await webOSshowMessage(modeStr + " DDC reseted!")
 
 # GUI signal handlers
 def LUT3D709BrowseClicked():
-    fileName = QFileDialog.getOpenFileName(None, "Open 3D LUT", "~/", "3D LUT (*.cube)")
+    fileName = QFileDialog.getOpenFileName(None, "Open 3D LUT", "~/Library/Application\\ Support/DisplayCAL/storage", "3D LUT (*.cube)")
     mainWidgetObj.objs.LutEdit2.setText(fileName[0])
+    return fileName[0]
+
+def LUT1DBrowseClicked(self):
+    fileName = QFileDialog.getOpenFileName(None, "Open 1D LUT", "~/Library/Application\\ Support/DisplayCAL/storage", "1D LUT (*.cal)")
+    mainWidgetObj.objs.LutEdit1.setText(fileName[0])
     return fileName[0]
 
 def connectClicked(self):
@@ -127,15 +160,11 @@ def connectClicked(self):
     except:
         print("Error while connecting, probably wrong IP or TV turned off")
     else:
-        if operationStr=="Connect": loadImageSettings()
-
-def LUT1DBrowseClicked(self):
-    fileName = QFileDialog.getOpenFileName(None, "Open 1D LUT", "~/", "1D LUT (*.cal)")
-    mainWidgetObj.objs.LutEdit1.setText(fileName[0])
-    return fileName[0]
+        if operationStr=="Connect": 
+            loadImageSettings()
 
 def setModeComboChanged(self):
-    asyncio.get_event_loop().run_until_complete(setMode(self.currentText()))
+    asyncio.get_event_loop().run_until_complete(performSetMode(self.currentText()))
 
 def ddcResetClicked(self):
     modeStr = self.currentText()
@@ -145,6 +174,11 @@ def ddcResetClicked(self):
         print("Error DCC Reset")
     else:
         loadImageSettings()
+
+def uploadLUTClicked(uploadKindStr,editObj):
+    modeStr  = mainWidgetObj.objs.calibrationModeComboBox.currentText()
+    fileStr = editObj.text()
+    asyncio.get_event_loop().run_until_complete(uploadLut(uploadKindStr,fileStr,modeStr))
 
 # GUI General Helpers
 def loadImageSettings():
@@ -159,11 +193,15 @@ def activateGUI(condition):
     mainWidgetObj.objs.IP.setEnabled(not condition)
     mainWidgetObj.objs.connectedCheckbox.setChecked(condition)
     mainWidgetObj.objs.settingsBox.setEnabled(condition)
+    mainWidgetObj.objs.uploadBox.setEnabled(condition)
 
 def alertBox(text,descriptionStr,err):
     template = "{0} {1!r}:\n"
     message = template.format(type(err).__name__, err.args)
-    QMessageBox.warning(mainWidgetObj, "Sorry, we couldn't complete your request", message+descriptionStr) 
+    QMessageBox.warning(mainWidgetObj, "Sorry, we couldn't complete your request", message+descriptionStr)
+    
+def successBox(descriptionStr):
+    QMessageBox.information(mainWidgetObj, "Success!", descriptionStr) 
 
 if __name__ == "__main__":
     app = QApplication([])
