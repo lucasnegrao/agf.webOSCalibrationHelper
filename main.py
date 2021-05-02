@@ -129,7 +129,7 @@ async def performSetMode(modeStr):
     await webosClientGlobalObj.start_calibration(picMode=modeStr)
     await loadImageSettingsAsync()
     await webOSshowMessage("TV DDC Changed to "+modeStr)
-    await webosClientGlobalObj.end_calibration(picMode=modeStr)
+#    await webosClientGlobalObj.end_calibration(picMode=modeStr)
 
 async def performDDCReset(modeStr):
     if modeStr!="":
