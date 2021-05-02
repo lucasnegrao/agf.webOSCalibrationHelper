@@ -1,13 +1,14 @@
 # This Python file uses the following encoding: utf-8
-import sys
-import os
 import asyncio
+import os
+import sys
 
 from aiopylgtv import WebOsClient
-from PySide2.QtWidgets import QApplication, QWidget, QFileDialog, QMessageBox
-from PySide2.QtCore import QFile
+from PySide2.QtCore import QFile, QObject, Qt
 from PySide2.QtUiTools import QUiLoader
-from PySide2.QtCore import QObject, Signal, Slot
+from PySide2.QtWidgets import QApplication, QFileDialog, QMessageBox, QWidget
+
+from displaycalink import get1DLUTPath, get3DLUTPath, get3DLUTSize
 
 class webOSCalHelperWidget(QWidget):
     objs = []
@@ -24,7 +25,7 @@ class webOSCalHelperWidget(QWidget):
         # Widget Initialization
         self.objs = loader.load(ui_file, self)
         self.objs.calibrationModeComboBox.addItems(["expert1","expert2","cinema","game","technicolorExpert"])
-        
+
         # PushButton Callbacks
         self.objs.pB.clicked.connect(LUT1DBrowseClicked)
         self.objs.pB2.clicked.connect(LUT3D709BrowseClicked)
@@ -33,6 +34,7 @@ class webOSCalHelperWidget(QWidget):
         self.objs.upload1D.clicked.connect(lambda: uploadLUTClicked("1D",self.objs.LutEdit1))
         self.objs.upload3D709.clicked.connect(lambda: uploadLUTClicked("3D709",self.objs.LutEdit2))
         self.objs.upload3D2020.clicked.connect(lambda: uploadLUTClicked("3D2020",self.objs.LutEdit3))
+        self.objs.loadDisplayCalLUTPB.clicked.connect(loadLutsFromDisplayCal)
 
         # Slider Callbacks
         self.objs.contrastSlider.valueChanged.connect(lambda: setImageSetting("contrast",self.objs.contrastSlider))
@@ -129,7 +131,7 @@ async def performSetMode(modeStr):
     await webosClientGlobalObj.start_calibration(picMode=modeStr)
     await loadImageSettingsAsync()
     await webOSshowMessage("TV DDC Changed to "+modeStr)
-    await webosClientGlobalObj.end_calibration(picMode=modeStr)
+#    await webosClientGlobalObj.end_calibration(picMode=modeStr)
 
 async def performDDCReset(modeStr):
     if modeStr!="":
@@ -163,6 +165,20 @@ def connectClicked(self):
         if operationStr=="Connect": 
             loadImageSettings()
 
+def loadLutsFromDisplayCal():
+    try:
+        lut1dpath = get1DLUTPath()
+        lut3dpath = get3DLUTPath()
+        lut3DSize = get3DLUTSize()
+    except:
+        alertBox("Load DisplayCAL configuration","Cannot load last displaycal configuration. Is it installed?")
+    else:
+        mainWidgetObj.objs.LutEdit1.setText(lut1dpath)
+        if lut3DSize==33 or lut3DSize==17:
+            mainWidgetObj.objs.LutEdit2.setText(lut3dpath)
+        else: 
+            alertBox("Load DisplayCAL configuration","Last LUT 3D created was of wrong size. Sizes supported are 33 and 17, last was: "+str(lut3DSize))
+
 def setModeComboChanged(self):
     asyncio.get_event_loop().run_until_complete(performSetMode(self.currentText()))
 
@@ -195,7 +211,7 @@ def activateGUI(condition):
     mainWidgetObj.objs.settingsBox.setEnabled(condition)
     mainWidgetObj.objs.uploadBox.setEnabled(condition)
 
-def alertBox(text,descriptionStr,err):
+def alertBox(text,descriptionStr,err=None):
     template = "{0} {1!r}:\n"
     message = template.format(type(err).__name__, err.args)
     QMessageBox.warning(mainWidgetObj, "Sorry, we couldn't complete your request", message+descriptionStr)
@@ -203,7 +219,8 @@ def alertBox(text,descriptionStr,err):
 def successBox(descriptionStr):
     QMessageBox.information(mainWidgetObj, "Success!", descriptionStr) 
 
-if __name__ == "__main__":
+def main(): 
+#if __name__ == "__main__":
     app = QApplication([])
     mainWidgetObj = webOSCalHelperWidget()
     mainWidgetObj.show()
