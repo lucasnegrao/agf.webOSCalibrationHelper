@@ -157,9 +157,13 @@ def LUT1DBrowseClicked(self):
 
 def connectClicked(self):
     operationStr = self.text()
+
+    print(operationStr)
+
     try:
         asyncio.get_event_loop().run_until_complete(performWebOSConnection(operationStr))
-    except:
+    except Exception as error:
+        print(error)
         print("Error while connecting, probably wrong IP or TV turned off")
     else:
         if operationStr=="Connect": 
@@ -168,16 +172,21 @@ def connectClicked(self):
 def loadLutsFromDisplayCal():
     try:
         lut1dpath = get1DLUTPath()
-        lut3dpath = get3DLUTPath()
-        lut3DSize = get3DLUTSize()
     except:
         alertBox("Load DisplayCAL configuration","Cannot load last displaycal configuration. Is it installed?")
     else:
         mainWidgetObj.objs.LutEdit1.setText(lut1dpath)
+    try:
+        lut3DSize = get3DLUTSize()
+        lut3dpath = get3DLUTPath()
+    except:
+        alertBox("Load DisplayCAL configuration","Cannot load last displaycal configuration. Is it installed?")
+    else:
         if lut3DSize==33 or lut3DSize==17:
             mainWidgetObj.objs.LutEdit2.setText(lut3dpath)
         else: 
             alertBox("Load DisplayCAL configuration","Last LUT 3D created was of wrong size. Sizes supported are 33 and 17, last was: "+str(lut3DSize))
+
 
 def setModeComboChanged(self):
     asyncio.get_event_loop().run_until_complete(performSetMode(self.currentText()))
@@ -220,9 +229,11 @@ def successBox(descriptionStr):
     QMessageBox.information(mainWidgetObj, "Success!", descriptionStr) 
 
 def main(): 
-#if __name__ == "__main__":
     app = QApplication([])
+    global mainWidgetObj
     mainWidgetObj = webOSCalHelperWidget()
     mainWidgetObj.show()
     sys.exit(app.exec_())
 
+if __name__ == "__main__":
+    main()
