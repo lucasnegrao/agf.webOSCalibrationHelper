@@ -201,7 +201,7 @@
    <property name="bottomMargin">
     <number>20</number>
    </property>
-   <item row="0" column="1">
+   <item row="2" column="1">
     <widget class="QFrame" name="frame">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -309,7 +309,7 @@
          <x>10</x>
          <y>0</y>
          <width>402</width>
-         <height>220</height>
+         <height>221</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
@@ -319,13 +319,6 @@
         <property name="sizeConstraint">
          <enum>QLayout::SetFixedSize</enum>
         </property>
-        <item>
-         <widget class="QLabel" name="label_4">
-          <property name="text">
-           <string>webOS Television IP or hostname</string>
-          </property>
-         </widget>
-        </item>
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_9">
           <item>
@@ -397,6 +390,24 @@
            <widget class="QPushButton" name="connectPB">
             <property name="text">
              <string>Connect</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_7">
+          <item>
+           <widget class="QLabel" name="label_4">
+            <property name="text">
+             <string>webOS Television IP or hostname</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="powerButton">
+            <property name="text">
+             <string>...</string>
             </property>
            </widget>
           </item>
@@ -484,6 +495,15 @@
                    </color>
                   </brush>
                  </colorrole>
+                 <colorrole role="PlaceholderText">
+                  <brush brushstyle="NoBrush">
+                   <color alpha="128">
+                    <red>255</red>
+                    <green>255</green>
+                    <blue>255</blue>
+                   </color>
+                  </brush>
+                 </colorrole>
                 </active>
                 <inactive>
                  <colorrole role="Text">
@@ -504,6 +524,15 @@
                    </color>
                   </brush>
                  </colorrole>
+                 <colorrole role="PlaceholderText">
+                  <brush brushstyle="NoBrush">
+                   <color alpha="128">
+                    <red>255</red>
+                    <green>255</green>
+                    <blue>255</blue>
+                   </color>
+                  </brush>
+                 </colorrole>
                 </inactive>
                 <disabled>
                  <colorrole role="Text">
@@ -521,6 +550,15 @@
                     <red>62</red>
                     <green>62</green>
                     <blue>62</blue>
+                   </color>
+                  </brush>
+                 </colorrole>
+                 <colorrole role="PlaceholderText">
+                  <brush brushstyle="NoBrush">
+                   <color alpha="128">
+                    <red>255</red>
+                    <green>255</green>
+                    <blue>255</blue>
                    </color>
                   </brush>
                  </colorrole>
@@ -585,6 +623,15 @@
                    </color>
                   </brush>
                  </colorrole>
+                 <colorrole role="PlaceholderText">
+                  <brush brushstyle="NoBrush">
+                   <color alpha="128">
+                    <red>255</red>
+                    <green>255</green>
+                    <blue>255</blue>
+                   </color>
+                  </brush>
+                 </colorrole>
                 </active>
                 <inactive>
                  <colorrole role="Text">
@@ -605,6 +652,15 @@
                    </color>
                   </brush>
                  </colorrole>
+                 <colorrole role="PlaceholderText">
+                  <brush brushstyle="NoBrush">
+                   <color alpha="128">
+                    <red>255</red>
+                    <green>255</green>
+                    <blue>255</blue>
+                   </color>
+                  </brush>
+                 </colorrole>
                 </inactive>
                 <disabled>
                  <colorrole role="Text">
@@ -622,6 +678,15 @@
                     <red>62</red>
                     <green>62</green>
                     <blue>62</blue>
+                   </color>
+                  </brush>
+                 </colorrole>
+                 <colorrole role="PlaceholderText">
+                  <brush brushstyle="NoBrush">
+                   <color alpha="128">
+                    <red>255</red>
+                    <green>255</green>
+                    <blue>255</blue>
                    </color>
                   </brush>
                  </colorrole>

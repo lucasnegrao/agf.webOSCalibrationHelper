@@ -35,6 +35,8 @@ class webOSCalHelperWidget(QWidget):
         self.objs.upload3D709.clicked.connect(lambda: uploadLUTClicked("3D709",self.objs.LutEdit2))
         self.objs.upload3D2020.clicked.connect(lambda: uploadLUTClicked("3D2020",self.objs.LutEdit3))
         self.objs.loadDisplayCalLUTPB.clicked.connect(loadLutsFromDisplayCal)
+        self.objs.powerButton.clicked.connect(powerButtonClicked)
+
 
         # Slider Callbacks
         self.objs.contrastSlider.valueChanged.connect(lambda: setImageSetting("contrast",self.objs.contrastSlider))
@@ -133,6 +135,9 @@ async def performSetMode(modeStr):
     await webOSshowMessage("TV DDC Changed to "+modeStr)
 #    await webosClientGlobalObj.end_calibration(picMode=modeStr)
 
+async def performPowerOff():
+    await webosClientGlobalObj.power_off()
+
 async def performDDCReset(modeStr):
     if modeStr!="":
         try:
@@ -154,6 +159,10 @@ def LUT1DBrowseClicked(self):
     fileName = QFileDialog.getOpenFileName(None, "Open 1D LUT", "~/Library/Application\\ Support/DisplayCAL/storage", "1D LUT (*.cal)")
     mainWidgetObj.objs.LutEdit1.setText(fileName[0])
     return fileName[0]
+
+def powerButtonClicked():
+    asyncio.get_event_loop().run_until_complete(performPowerOff())
+
 
 def connectClicked(self):
     operationStr = self.text()
