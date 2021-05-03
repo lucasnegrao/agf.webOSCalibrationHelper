@@ -1,6 +1,8 @@
 import sys
 import os
 
+
+
 import configparser
 configparser.DEFAULTSECT = "Default"
 
@@ -119,12 +121,16 @@ def get1DLUTPath():
 	return (cfg['Default']['last_cal_path'])
 
 def get3DLUTPath():
-	cfg.read(confighome+"/DisplayCal.ini")
-	return (cfg['Default']['last_3dlut_path'])
+#	cfg.read(confighome+"/DisplayCal.ini")
+#	(cfg['Default']['last_3dlut_path'])
+	files=listdir_re(getLUTSPath(),"([a-zA-Z0-9\s_\\.\-\(\):])+(.cube)$")
+	return(getLUTSPath()+"/"+next(files,None))
 
 def get3DLUTSize():
 	cfg.read(confighome+"/DisplayCal.ini")
 	return int(cfg['Default']['3dlut.size'])
 
+def getLUTSPath():
+	return os.path.dirname(get1DLUTPath())
 
 
